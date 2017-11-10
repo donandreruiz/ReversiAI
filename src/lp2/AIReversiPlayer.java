@@ -1,13 +1,16 @@
 package lp2;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-
+import lp2.ConnectFour.Color;
 import lp2.GameState.Player;
 import lp2.GameState.Status;
 
 public class AIReversiPlayer implements GamePlayer<Pair<Integer>> {
 	private Player me;
+	public HashMap<Reversi, Integer> transpTable;
+	
 	
 	public AIReversiPlayer(Player p) {
 		me = p;
@@ -20,11 +23,39 @@ public class AIReversiPlayer implements GamePlayer<Pair<Integer>> {
 	}
 	
 	private int eval(Reversi gs) {
-		// TODO Implement a board evaluation function
-		Random rand = new Random(); 
-		int value = rand.nextInt(100); 
-		return value;
+		int[][] evalTable = {
+	            { 50, -1, 5, 2, 2, 5, -1, 50 },
+	            { -1, -10, 1, 1, 1, 1, -10, -1 },
+	            { 5, 1, 1, 1, 1, 1, 1, 5 },
+	            { 2, 1, 1, 0, 0, 1, 1, 2 },
+	            { 2, 1, 1, 0, 0, 1, 1, 2 },
+	            { 5, 1, 1, 1, 1, 1, 1, 5 },
+	            { -1, -10, 1, 1, 1, 1, -10, -1 },
+	            { 50, -1, 5, 2, 2, 5, -1, 50 } };
+
+	   
+	   	int sum = 0;
+		Color myPlayer = Color.BLACK;
+		Color opp = Color.BLANK;
+		
+		if(me != Player.ONE){
+			myPlayer = Color.BLANK;
+			opp = Color.BLACK;
+		}
+	
+		
+		for (int i = 0; i < gs.HEIGHT-1; i++){
+			for (int j = 0; j < gs.WIDTH-1; j++){
+				if (gs.getSquare(i, j).equals(myPlayer)){
+					sum += evalTable[i][j];
+				}else if (gs.getSquare(i, j).equals(opp)){
+					sum -= evalTable[i][j];
+				}
+			}
+		}
+		return sum;
 	}
+	
 	
 	@Override
 	public Pair<Integer> getMove(GameState<Pair<Integer>> gs) {
@@ -62,13 +93,27 @@ public class AIReversiPlayer implements GamePlayer<Pair<Integer>> {
 	
 	
 	public int alphabeta(Reversi gs, boolean myTurn, int d, int alpha, int beta, long startTime, long endTime){
-		if(endTime - startTime > 5000){
+		if(endTime - startTime > 4500){
 			return Integer.MIN_VALUE;
 		}
 		
 		int v;
+		
 		if(gs.getGameStatus() != Status.ONGOING || d == 0){
 			return eval(gs);
+		}
+		
+		
+		if(!transpTable.isEmpty()){
+			if(transpTable.containsKey(gs)){
+				return transpTable.get(gs);
+			}
+		}
+		
+		if(gs.currentPlayer() == me){
+			myTurn = true;
+		}else{
+			myTurn = false;
 		}
 		
 		if(myTurn){
@@ -77,12 +122,13 @@ public class AIReversiPlayer implements GamePlayer<Pair<Integer>> {
 			for(Pair<Integer> neighborMove : moves){
 				Reversi copyStates = (Reversi) gs.copyState();
 				copyStates.playMove(neighborMove);
-				v = Math.max(v, alphabeta(copyStates,whosTurn(copyStates),d-1,alpha, beta, startTime, System.currentTimeMillis()));
+				v = Math.max(v, alphabeta(copyStates,myTurn,d-1,alpha, beta, startTime, System.currentTimeMillis()));
 				alpha  = Math.max(alpha, v);
 				if(beta <= alpha){
 					break;
 				}
 			}
+			transpTable.put(gs, v);
 			return v;
 		}else{
 			v = Integer.MAX_VALUE;
@@ -90,25 +136,14 @@ public class AIReversiPlayer implements GamePlayer<Pair<Integer>> {
 			for(Pair<Integer> neighborMove : moves){
 				Reversi copyStates = (Reversi) gs.copyState();
 				copyStates.playMove(neighborMove);
-				v = Math.min(v, alphabeta(copyStates,whosTurn(copyStates),d-1,alpha, beta, startTime, System.currentTimeMillis()));
+				v = Math.min(v, alphabeta(copyStates,myTurn,d-1,alpha, beta, startTime, System.currentTimeMillis()));
 				beta  = Math.min(beta, v);
 				if(beta <= alpha){
 					break;
 				}
 			}
+			transpTable.put(gs, v);
 			return v;
 		}
-	}
-	
-	public boolean whosTurn(Reversi gs){
-		if(gs.currentPlayer() == me && gs.getMoves().isEmpty()){
-			return false;
-		}else if(gs.currentPlayer() != me && gs.getMoves().isEmpty()){
-			return true;
-		}else if(gs.currentPlayer() == me && !gs.getMoves().isEmpty()){
-			return true;
-		}
-		
-		return false;
 	}
 }
